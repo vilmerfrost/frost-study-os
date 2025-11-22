@@ -165,18 +165,18 @@ export async function analyzeCompletedSession(opts: {
 
   if (!concept) {
     // No concept to track, but we can still suggest reviews
-    if (session.retention_importance === "high") {
-      return {
-        suggestedReviews: [
-          {
-            topic: session.topic,
-            subtopic: session.topic,
-            reason: "High retention importance marked by user",
-          },
-        ],
-        insightsSummary: "Session completed. Review items will be created if retention importance is high.",
-      };
-    }
+    // if (session.retention_importance === "high") {
+    //   return {
+    //     suggestedReviews: [
+    //       {
+    //         topic: session.topic,
+    //         subtopic: session.topic,
+    //         reason: "High retention importance marked by user",
+    //       },
+    //     ],
+    //     insightsSummary: "Session completed. Review items will be created if retention importance is high.",
+    //   };
+    // }
     return {
       insightsSummary: "Session completed. No concept tracking available for this topic.",
     };
@@ -215,13 +215,13 @@ export async function analyzeCompletedSession(opts: {
 
   // Suggest review items if retention is high or reflection indicates confusion
   const suggestedReviews: SuggestedReviewItem[] = [];
-  if (session.retention_importance === "high") {
-    suggestedReviews.push({
-      topic: session.topic,
-      subtopic: concept.title,
-      reason: "High retention importance",
-    });
-  }
+  // if (session.retention_importance === "high") {
+  //   suggestedReviews.push({
+  //     topic: session.topic,
+  //     subtopic: concept.title,
+  //     reason: "High retention importance",
+  //   });
+  // }
 
   if (reflectionAnalysis && reflectionAnalysis.sentiment === "negative" && reflectionAnalysis.struggleKeywords.length > 1) {
     suggestedReviews.push({

@@ -1,101 +1,95 @@
-import { NextResponse } from "next/server";
-import { buildStudyPlan, BuildPlanInput, buildMarkdownChecklist } from "@/lib/planEngine";
-import { buildPlanWithOrchestrator } from "@/lib/plan/orchestrator";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { AgentOrchestrator } from "@/lib/agents/orchestrator";
+import { BuildPlanInput } from "@/lib/agents/types";
 
-export async function POST(req: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as Partial<BuildPlanInput>;
+    const body = await req.json();
+    const { userId, ...input } = body;
 
-    // Validate required fields
-    if (!body.topic || !body.phase || !body.energy || !body.timeBlock) {
-      return NextResponse.json(
-        { error: "topic, phase, energy, timeBlock krävs" },
-        { status: 400 }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
 
-    // Validate ranges
-    if (body.phase && (body.phase < 1 || body.phase > 6)) {
-      return NextResponse.json(
-        { error: "phase must be between 1 and 6" },
-        { status: 400 }
-      );
-    }
-
-    if (body.energy && (body.energy < 1 || body.energy > 5)) {
-      return NextResponse.json(
-        { error: "energy must be between 1 and 5" },
-        { status: 400 }
-      );
-    }
-
-    if (body.timeBlock && (body.timeBlock < 15 || body.timeBlock > 480)) {
-      return NextResponse.json(
-        { error: "timeBlock must be between 15 and 480 minutes" },
-        { status: 400 }
-      );
-    }
-
-    const {
-      useOrchestrator,
-      respectUserInput,
-      ...rest
-    } = body as BuildPlanInput & { useOrchestrator?: boolean; respectUserInput?: boolean };
-
-    const baseInput: BuildPlanInput = {
-      topic: rest.topic,
-      phase: rest.phase,
-      energy: rest.energy,
-      timeBlock: rest.timeBlock,
-      deepDiveTopic: rest.deepDiveTopic,
-      day: rest.day,
-      generateWeekPlan: rest.generateWeekPlan,
-      numDays: rest.numDays,
-      energyPattern: rest.energyPattern,
-      yearDayIndex: rest.yearDayIndex,
-    };
-
-    const plan = useOrchestrator === false
-      ? await buildStudyPlan(baseInput)
-      : await buildPlanWithOrchestrator(baseInput, { respectUserInput });
-
-    const markdown = buildMarkdownChecklist(plan);
-
-    // Spara session i Supabase
-    const { data: sessionData, error: sessionError } = await supabaseServer
-      .from("study_sessions")
+    // Create job
+    const { data: job, error } = await supabase
+      .from("plan_generation_jobs")
       .insert({
-        topic: plan.topic,
-        phase: plan.phase,
-        energy: plan.energy,
-        time_block: plan.timeBlock,
-        deep_dive_topic: plan.deepDiveTopicId ?? null,
-        deep_dive_day: plan.deepDiveDay ?? null,
-        plan,
+        user_id: userId,
+        input: input,
+        status: "pending",
       })
-      .select("id")
+      .select()
       .single();
 
-    if (sessionError) {
-      console.error("Error saving session:", sessionError);
-      // Fortsätt ändå, session quality kan sparas senare
-    }
+    if (error) throw error;
 
-    return NextResponse.json(
-      {
-        plan,
-        markdown,
-        phaseLabel: `Phase ${body.phase}`,
-        sessionId: sessionData?.id || null,
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Något gick fel när planen genererades." },
-      { status: 500 }
-    );
+    // Trigger async processing (simulated for now by running immediately but not awaiting result for the response)
+    // In a real serverless env, this would be a separate function or queue.
+    processJob(job.id, { userId, ...input });
+
+    return NextResponse.json({ jobId: job.id, status: "pending" });
+  } catch (error) {
+    console.error("Error creating plan job:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const jobId = searchParams.get("jobId");
+
+  if (!jobId) {
+    return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
+  }
+
+  const { data: job, error } = await supabase
+    .from("plan_generation_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(job);
+}
+
+// Helper to process job (in-memory for now)
+async function processJob(jobId: string, input: BuildPlanInput) {
+  try {
+    await supabase
+      .from("plan_generation_jobs")
+      .update({ status: "processing", progress: 10 })
+      .eq("id", jobId);
+
+    const orchestrator = new AgentOrchestrator();
+    const { plan, logs } = await orchestrator.executePlan(input);
+
+    await supabase
+      .from("plan_generation_jobs")
+      .update({
+        status: "completed",
+        progress: 100,
+        result: plan as any,
+        agent_logs: logs as any,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
+  } catch (error: any) {
+    console.error("Job processing failed:", error);
+    await supabase
+      .from("plan_generation_jobs")
+      .update({
+        status: "failed",
+        error: error.message,
+      })
+      .eq("id", jobId);
   }
 }

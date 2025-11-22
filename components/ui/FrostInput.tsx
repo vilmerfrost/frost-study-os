@@ -16,8 +16,8 @@ export function FrostInput({ label, error, ...props }: FrostInputProps) {
           {label}
         </label>
       )}
-      
-      <motion.input
+
+      <input
         {...props}
         className={`
           w-full px-4 py-3 rounded-xl
@@ -29,9 +29,8 @@ export function FrostInput({ label, error, ...props }: FrostInputProps) {
           transition-all
           ${props.className || ''}
         `}
-        whileFocus={{ scale: 1.01 }}
       />
-      
+
       {error && (
         <motion.p
           initial={{ opacity: 0, y: -4 }}

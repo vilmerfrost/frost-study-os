@@ -1,7 +1,10 @@
+import React from 'react';
+
 interface StatsCardProps {
   label: string;
   value: string | number;
-  icon?: string;
+  icon?: React.ReactNode;
+  trendValue?: string;
   trend?: "up" | "down" | "neutral";
 }
 
@@ -10,6 +13,7 @@ export default function StatsCard({
   value,
   icon,
   trend,
+  trendValue,
 }: StatsCardProps) {
   const trendColors = {
     up: "text-green-400",
@@ -28,7 +32,7 @@ export default function StatsCard({
       </div>
       {trend && (
         <p className={`text-xs mt-2 ${trendColors[trend]}`}>
-          {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"} vs förra veckan
+          {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"} {trendValue} vs förra veckan
         </p>
       )}
     </div>

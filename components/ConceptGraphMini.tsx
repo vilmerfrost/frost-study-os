@@ -26,7 +26,7 @@ export default function ConceptGraphMini({ phase, userId }: ConceptGraphMiniProp
 
       try {
         const concepts = getConceptsForPhase(phase);
-        
+
         // Fetch mastery from API route (since we can't use supabaseServer in client components)
         const res = await fetch(`/api/concepts/mastery?userId=${userId}&phase=${phase}`);
         if (!res.ok) {
@@ -38,7 +38,7 @@ export default function ConceptGraphMini({ phase, userId }: ConceptGraphMiniProp
 
         const data = concepts.slice(0, 8).map((concept) => ({
           conceptId: concept.id,
-          mastery: masteryMap.get(concept.id) ?? 0,
+          mastery: (masteryMap.get(concept.id) as number) ?? 0,
           title: concept.title,
         }));
 

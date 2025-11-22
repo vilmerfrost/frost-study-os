@@ -15,9 +15,17 @@ const links = [
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
+import { useEffect, useState } from "react";
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const { theme, toggleTheme, mounted } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const themeIcon = !mounted ? "…" : theme === "dark" ? "☀️" : "🌙";
   const themeLabel = !mounted ? "Laddar..." : theme === "dark" ? "Ljust läge" : "Mörkt läge";
 
@@ -38,11 +46,10 @@ export default function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                active
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${active
                   ? "bg-sky-500 text-white font-medium shadow-lg shadow-sky-500/20"
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100"
-              }`}
+                }`}
             >
               <span className="text-lg">{link.icon}</span>
               <span>{link.label}</span>

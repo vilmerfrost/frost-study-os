@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false });
 
     // Get concept mastery changes
-    const masteryRecords = await getUserConceptMastery(userId);
+    const masteryRecords = await getUserConceptMastery(userId, 1);
 
     // Calculate metrics
     const totalDeepWorkHours = (sessions || []).reduce((sum, s) => sum + (s.time_block || 0) / 60, 0);
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
       totalDeepWorkHours: Math.round(totalDeepWorkHours * 10) / 10,
       avgCompletionRate: Math.round(avgCompletionRate),
       phaseProgress,
-      struggledConcepts,
+      struggledConcepts: strugglingConcepts,
       totalSessions: sessions?.length || 0,
     };
 
